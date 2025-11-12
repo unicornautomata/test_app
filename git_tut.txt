@@ -1,0 +1,12 @@
+git checkout -b AA
+git add git_tut.txt
+git commit -m "Add git_tut.txt file"
+git push -u origin AA
+
+
+git checkout main
+git checkout -b BB
+git add New.txt git_tut.txt
+git commit -m "Add New.txt and update git_tut.txt"
+git push -u origin BB
+
