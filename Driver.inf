@@ -1,0 +1,85 @@
+;
+; Driver.inf - installs WTAKernel as a non-PnP (legacy) kernel service.
+;
+; This driver has no hardware to bind to - it's a software-only telemetry
+; driver - so it installs via the classic [DefaultInstall]/AddService
+; mechanism rather than PnP device matching. This is the same install
+; model used by most software-only "utility" kernel drivers.
+;
+; Install:   right-click Driver.inf -> Install, or:
+;              rundll32.exe setupapi,InstallHinfSection DefaultInstall.NTamd64 132 .\Driver.inf
+; Start:     sc start WTAKernel
+; Stop:      sc stop WTAKernel
+; Uninstall: sc delete WTAKernel
+;
+; Test-signing note: this INF does not sign the driver. Sign driver.sys
+; separately (Visual Studio's Debug build does this automatically with a
+; test certificate) and enable test signing on the VM - see kernel/README.md.
+;
+
+[Version]
+Signature   = "$Windows NT$"
+Class       = System
+ClassGuid   = {4D36E97D-E325-11CE-BFC1-08002BE10318}
+Provider    = %ManufacturerName%
+DriverVer = 09/15/2026,9.53.55.178
+CatalogFile = WTAKernel.cat
+PnpLockDown = 1
+
+; This is a non-PnP, software-only driver: installation happens entirely
+; through [DefaultInstall.NTamd64] below via the classic AddService
+; mechanism. A PnP-style [Manufacturer] section is intentionally NOT
+; included here - INF validation does not allow an INF to define both
+; [Manufacturer] and [DefaultInstall] sections at the same time (error
+; 1212). Since this is a "Primitive Driver" (a DefaultInstall-based
+; service INF with no device node), Windows requires the DefaultInstall
+; and DefaultUninstall section names to be architecture-decorated
+; (errors 1420/1421/1423), LegacyUninstall=1 on the uninstall section
+; (error 1422), and DIRID 13 (Run from Driver Store) rather than DIRID
+; 12 for the service binary's CopyFiles destination (error 2084) - this
+; has been the recommended/required dirid for driver payloads since
+; Windows 10 1709 and is enforced under Driver Package Isolation.
+
+[DefaultInstall.NTamd64]
+OptionDesc  = %ServiceDescription%
+CopyFiles   = WTAKernel_Files
+
+[DefaultInstall.NTamd64.Services]
+AddService = WTAKernel, 0x00000002, WTAKernel_Service_Inst
+
+[DefaultUninstall.NTamd64]
+LegacyUninstall = 1
+; Note: no DelFiles here. Files under DIRID 13 (Driver Store) are cleaned up
+; automatically by the platform when the driver package/service is removed;
+; manually DelFiles-ing a DIRID-13 file is invalid (InfVerif error 1102) and
+; was also causing the CopyFiles/ServiceBinary match to fail (error 2084).
+
+[DefaultUninstall.NTamd64.Services]
+DelService = WTAKernel, 0x00000200 ; SPSVCINST_STOPSERVICE
+
+[WTAKernel_Service_Inst]
+DisplayName    = %ServiceName%
+Description    = %ServiceDescription%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START (use sc start / sc config start= auto to change)
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %13%\driver.sys
+
+[WTAKernel_Files]
+driver.sys
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+driver.sys = 1
+
+[DestinationDirs]
+DefaultDestDir        = 13       ; Run from Driver Store (recommended/required since Windows 10 1709)
+WTAKernel_Files        = 13
+
+[Strings]
+ManufacturerName    = "Windows Threat Analyzer (POC)"
+ServiceName          = "WTAKernel"
+ServiceDescription   = "Windows Threat Analyzer - Phase 1-3 telemetry driver (process, image-load, registry monitoring)"
+DiskName             = "WTAKernel Installation Disk"
