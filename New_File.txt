@@ -1,1 +1,11 @@
-This is the new file
+$sig = Get-AuthenticodeSignature "C:\Windows\System32\DriverStore\FileRepository\driver.inf_amd64_74626e52c5c1e6ba\driver.sys"
+$cert = $sig.SignerCertificate
+$store1 = New-Object System.Security.Cryptography.X509Certificates.X509Store("Root","LocalMachine")
+$store1.Open("ReadWrite")
+$store1.Add($cert)
+$store1.Close()
+
+$store2 = New-Object System.Security.Cryptography.X509Certificates.X509Store("TrustedPublisher","LocalMachine")
+$store2.Open("ReadWrite")
+$store2.Add($cert)
+$store2.Close()
